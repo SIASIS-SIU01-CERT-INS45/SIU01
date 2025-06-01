@@ -43,10 +43,10 @@ export interface AsistenciaDiariaResultado {
     | null;
 }
 
-export interface ConsultarAsistenciasDiariasPorActorEnRedisResponseBody {
+export interface ConsultarAsistenciasTomadasPorActorEnRedisResponseBody {
   Actor: ActoresSistema;
   ModoRegistro: ModoRegistro;
-  Resultados: AsistenciaDiariaResultado[];
+  Resultados: AsistenciaDiariaResultado | AsistenciaDiariaResultado[];
   Mes: Meses;
   Dia: number;
 }
@@ -88,4 +88,29 @@ export interface RegistroEntradaSalidaPersonal {
   timestamp: number;
   desfaseSegundos: number;
   estado: EstadosAsistenciaPersonal;
+}
+
+// Interface para el request body
+export interface EliminarAsistenciaRequestBody {
+  DNI: string;
+  Actor: ActoresSistema;
+  ModoRegistro: ModoRegistro;
+  TipoAsistencia: TipoAsistencia;
+  // Para estudiantes (opcionales si no se especifican, se busca por patrón)
+  NivelEducativo?: string;
+  Grado?: number;
+  Seccion?: string;
+  // Fecha específica (opcional, por defecto usa fecha actual)
+  Fecha?: string; // Formato YYYY-MM-DD
+}
+
+// Interface para la respuesta exitosa
+export interface EliminarAsistenciaSuccessResponse {
+  success: true;
+  message: string;
+  data: {
+    asistenciaEliminada: boolean;
+    claveEliminada: string | null;
+    fecha: string;
+  };
 }

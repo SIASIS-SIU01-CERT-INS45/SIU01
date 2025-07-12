@@ -44,8 +44,9 @@ interface EstadoAsistencia {
 interface EstadoBoton {
   visible: boolean;
   tipo: ModoRegistro | null;
-  color: "verde" | "rojizo";
+  color: "verde" | "rojizo" | "carga";
   tooltip: string;
+  esCarga: boolean;
 }
 
 interface ModoActual {
@@ -67,6 +68,7 @@ interface MensajeInformativo {
 
 // ✅ CONSTANTES
 const RETRY_HORARIO_MS = 30000; // 30 segundos
+const TIMEOUT_EMERGENCIA_REINTENTO_MS = 3800; // 3.8 segundos
 
 // ✅ SELECTOR OPTIMIZADO - Solo para hora/minuto (NO cada segundo)
 const selectHoraMinutoActual = (state: RootState) => {
@@ -227,11 +229,13 @@ const MarcarAsistenciaDePersonalButton = memo(
       salidaMarcada: false,
       inicializado: false,
     });
+
     const [estadoBoton, setEstadoBoton] = useState<EstadoBoton>({
-      visible: false,
+      visible: true,
       tipo: null,
-      color: "verde",
+      color: "carga",
       tooltip: "",
+      esCarga: true,
     });
 
     // ✅ NUEVO: Estado para mensaje informativo
@@ -245,6 +249,17 @@ const MarcarAsistenciaDePersonalButton = memo(
     // ✅ NUEVO: Estado para el handler base
     const [handlerBase, setHandlerBase] =
       useState<HandlerAsistenciaBase | null>(null);
+
+    // ✅ 🔧 NUEVO ESTADO CRÍTICO: Control de consulta única
+    const [consultaInicialEnProceso, setConsultaInicialEnProceso] =
+      useState(false);
+    const [consultaInicialCompletada, setConsultaInicialCompletada] =
+      useState(false);
+
+    // ✅ NUEVO ESTADO - Timer de emergencia
+    const [timerEmergenciaActivo, setTimerEmergenciaActivo] = useState(true);
+    const timerEmergenciaRef = useRef<NodeJS.Timeout | null>(null);
+    const consultaEnProcesoRef = useRef<boolean>(false);
 
     // ===================================================================================
     //                         Variables de estado para modales
@@ -564,7 +579,7 @@ const MarcarAsistenciaDePersonalButton = memo(
       [obtenerFechaActual]
     );
 
-    // ✅ FUNCIÓN: Consultar asistencia del modo específico
+    // ✅ 🔧 FUNCIÓN CORREGIDA: Consultar asistencia del modo específico (CON PROTECCIÓN CONTRA DUPLICADOS)
     const consultarAsistenciaModo = useCallback(
       async (modo: ModoRegistro, razon: string): Promise<void> => {
         if (!asistenciaIDB) {
@@ -572,8 +587,20 @@ const MarcarAsistenciaDePersonalButton = memo(
           return;
         }
 
+        // ✅ 🔧 PROTECCIÓN INMEDIATA CON REF
+        if (consultaEnProcesoRef.current) {
+          console.log(
+            `⏭️ CONSULTA YA EN PROCESO - BLOQUEANDO ${modo} (${razon})`
+          );
+          return;
+        }
+
         try {
           console.log(`🔍 CONSULTANDO ${modo} - Razón: ${razon}`);
+
+          // ✅ 🔧 BLOQUEAR INMEDIATAMENTE
+          consultaEnProcesoRef.current = true;
+          setConsultaInicialEnProceso(true);
 
           const resultado = await asistenciaIDB.consultarMiAsistenciaDeHoy(
             modo,
@@ -585,7 +612,6 @@ const MarcarAsistenciaDePersonalButton = memo(
             fuente: resultado.fuente,
           });
 
-          // ✅ ACTUALIZAR SOLO EL ESTADO CORRESPONDIENTE
           setAsistencia((prev) => ({
             ...prev,
             entradaMarcada:
@@ -598,8 +624,14 @@ const MarcarAsistenciaDePersonalButton = memo(
                 : prev.salidaMarcada,
             inicializado: true,
           }));
+
+          setConsultaInicialCompletada(true);
         } catch (error) {
           console.error(`❌ Error al consultar ${modo}:`, error);
+        } finally {
+          // ✅ 🔧 LIBERAR LOCKS SIEMPRE
+          consultaEnProcesoRef.current = false;
+          setConsultaInicialEnProceso(false);
         }
       },
       [asistenciaIDB, rol]
@@ -680,9 +712,40 @@ const MarcarAsistenciaDePersonalButton = memo(
       }
     }, [rol]);
 
-    // ✅ FUNCIÓN: Actualizar estado del botón
+    // ✅ FUNCIÓN: Actualizar estado del botón CON ESTADO DE CARGA
     const actualizarEstadoBoton = useCallback(() => {
-      // ✅ NUEVO: Verificar condiciones especiales primero
+      // ✅ NUEVO: Verificar si aún estamos en proceso de inicialización
+      const estaInicializando =
+        !reduxInicializado ||
+        !asistenciaIDB ||
+        (rol !== RolesSistema.Directivo &&
+          rol !== RolesSistema.Responsable &&
+          !handlerBase) ||
+        !asistencia.inicializado;
+
+      console.log("🎯 ESTADO DE INICIALIZACIÓN:", {
+        reduxInicializado,
+        asistenciaIDB: !!asistenciaIDB,
+        handlerBase: !!handlerBase,
+        asistenciaInicializada: asistencia.inicializado,
+        estaInicializando,
+        rol,
+      });
+
+      // ✅ MOSTRAR ESTADO DE CARGA mientras se inicializa
+      if (estaInicializando) {
+        console.log("⏳ Mostrando estado de carga");
+        setEstadoBoton({
+          visible: true,
+          tipo: null,
+          color: "carga",
+          tooltip: "Inicializando sistema...",
+          esCarga: true,
+        });
+        return;
+      }
+
+      // ✅ A partir de aquí, todo está inicializado - lógica normal
       const condicionEspecial = verificarCondicionesEspeciales();
       if (condicionEspecial) {
         console.log("🚫 Condición especial detectada:", condicionEspecial);
@@ -691,11 +754,12 @@ const MarcarAsistenciaDePersonalButton = memo(
           tipo: null,
           color: "verde",
           tooltip: "",
+          esCarga: false,
         });
         return;
       }
 
-      // ✅ NUEVO: Verificar si no hay horario (después de condiciones especiales)
+      // ✅ Verificar si no hay horario (después de condiciones especiales)
       if (handlerBase && !horario) {
         console.log("🚫 Sin horario disponible");
         setEstadoBoton({
@@ -703,6 +767,7 @@ const MarcarAsistenciaDePersonalButton = memo(
           tipo: null,
           color: "verde",
           tooltip: "",
+          esCarga: false,
         });
         return;
       }
@@ -718,6 +783,7 @@ const MarcarAsistenciaDePersonalButton = memo(
           tipo: null,
           color: "verde",
           tooltip: "",
+          esCarga: false,
         });
         return;
       }
@@ -735,6 +801,7 @@ const MarcarAsistenciaDePersonalButton = memo(
           tipo: null,
           color: "verde",
           tooltip: "",
+          esCarga: false,
         });
         return;
       }
@@ -750,12 +817,17 @@ const MarcarAsistenciaDePersonalButton = memo(
         tipo: modoActual.tipo,
         color,
         tooltip: `¡Registra tu ${modoRegistroTextos[modoActual.tipo]}!`,
+        esCarga: false,
       });
     }, [
-      horario,
+      reduxInicializado,
+      asistenciaIDB,
       handlerBase,
+      asistencia.inicializado,
       asistencia.entradaMarcada,
       asistencia.salidaMarcada,
+      horario,
+      rol,
       determinarModoActual,
       verificarCondicionesEspeciales,
     ]);
@@ -807,6 +879,14 @@ const MarcarAsistenciaDePersonalButton = memo(
       // No ejecutar si hay mensaje informativo
       if (mensajeInformativo.mostrar) return;
 
+      // ✅ 🔧 NUEVA PROTECCIÓN: No ejecutar si consulta inicial no completada
+      if (!consultaInicialCompletada) {
+        console.log(
+          "⏭️ Esperando consulta inicial completada antes de consulta periódica"
+        );
+        return;
+      }
+
       const modoActual = determinarModoActual(horario);
 
       if (!modoActual.activo || !modoActual.tipo) {
@@ -824,25 +904,63 @@ const MarcarAsistenciaDePersonalButton = memo(
         return;
       }
 
-      // ✅ SOLO CONSULTAR SI ES UN MODO DIFERENTE O ES LA PRIMERA VEZ
+      // ✅ SOLO CONSULTAR SI ES UN MODO DIFERENTE
       if (ultimoModoConsultado.current !== modoActual.tipo) {
         console.log(
           `🔄 Cambio de modo detectado: ${ultimoModoConsultado.current} → ${modoActual.tipo}`
         );
         ultimoModoConsultado.current = modoActual.tipo;
+        consultarAsistenciaModo(
+          modoActual.tipo,
+          "consulta periódica inteligente"
+        );
       }
-
-      consultarAsistenciaModo(
-        modoActual.tipo,
-        "consulta periódica inteligente"
-      );
     }, [
       mensajeInformativo.mostrar,
+      consultaInicialCompletada, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
       horario,
       asistencia.entradaMarcada,
       asistencia.salidaMarcada,
       consultarAsistenciaModo,
       determinarModoActual,
+    ]);
+
+    // ✅ 🔧 FUNCIÓN CORREGIDA: Reintento de emergencia (SIN CONSULTAS DUPLICADAS)
+    const reintentoForzadoEmergencia = useCallback(() => {
+      console.log("🚨 REINTENTO FORZADO DE EMERGENCIA");
+
+      // ✅ 🔧 VERIFICACIÓN MÁS ESTRICTA
+      if (consultaEnProcesoRef.current) {
+        console.log("⏭️ Ya hay consulta en proceso, saltando emergencia");
+        setTimerEmergenciaActivo(false);
+        return;
+      }
+
+      if (!horario && !handlerBase) {
+        console.log("🔄 Forzando obtenerHorario()");
+        obtenerHorario();
+      }
+
+      // ✅ 🔧 SOLO SI REALMENTE ES NECESARIO
+      if (!asistencia.inicializado && horario && !consultaInicialCompletada) {
+        console.log("🔄 Ejecutando consulta de emergencia");
+        const modoActual = determinarModoActual(horario);
+        if (modoActual.activo && modoActual.tipo) {
+          consultarAsistenciaModo(modoActual.tipo, "emergencia");
+        }
+      }
+
+      actualizarEstadoBoton();
+      setTimerEmergenciaActivo(false);
+    }, [
+      horario,
+      handlerBase,
+      asistencia.inicializado,
+      consultaInicialCompletada,
+      obtenerHorario,
+      determinarModoActual,
+      consultarAsistenciaModo,
+      actualizarEstadoBoton,
     ]);
 
     // ✅ INICIALIZACIÓN
@@ -878,25 +996,31 @@ const MarcarAsistenciaDePersonalButton = memo(
       }
     }, [handlerBase, horario, reduxInicializado, verificarMensajeInformativo]);
 
-    // ✅ CONSULTA INICIAL cuando se obtiene el horario Y Redux está inicializado
+    // ✅ 🔧 CONSULTA INICIAL CORREGIDA (PROTEGIDA CONTRA DUPLICADOS)
     useEffect(() => {
       console.log("🚀 USEEFFECT CONSULTA INICIAL - Verificando condiciones:", {
         horario: !!horario,
         inicializadoAsistencia: asistencia.inicializado,
         reduxInicializado,
         mensajeInformativo: mensajeInformativo.mostrar,
+        consultaInicialCompletada,
+        consultaInicialEnProceso,
         debeEjecutar:
           horario &&
           !asistencia.inicializado &&
           reduxInicializado &&
-          !mensajeInformativo.mostrar,
+          !mensajeInformativo.mostrar &&
+          !consultaInicialCompletada &&
+          !consultaInicialEnProceso,
       });
 
       if (
         horario &&
         !asistencia.inicializado &&
         reduxInicializado &&
-        !mensajeInformativo.mostrar
+        !mensajeInformativo.mostrar &&
+        !consultaInicialCompletada && // ✅ 🔧 NUEVA CONDICIÓN CRÍTICA
+        !consultaInicialEnProceso // ✅ 🔧 NUEVA CONDICIÓN CRÍTICA
       ) {
         console.log("🚀 INICIANDO CONSULTA INICIAL... (Redux ya inicializado)");
 
@@ -916,6 +1040,8 @@ const MarcarAsistenciaDePersonalButton = memo(
             "❌ NO SE EJECUTA CONSULTA INICIAL - Razón:",
             modoActual.razon
           );
+          // ✅ 🔧 MARCAR COMO COMPLETADA AUNQUE NO HAYA CONSULTADO (porque no era necesario)
+          setConsultaInicialCompletada(true);
         }
       } else {
         if (!horario)
@@ -926,53 +1052,122 @@ const MarcarAsistenciaDePersonalButton = memo(
           console.log("⏭️ Redux no inicializado, esperando...");
         if (mensajeInformativo.mostrar)
           console.log("⏭️ Mensaje informativo activo, no consultar");
+        if (consultaInicialCompletada)
+          console.log("⏭️ Consulta inicial ya completada anteriormente");
+        if (consultaInicialEnProceso)
+          console.log("⏭️ Consulta inicial ya en proceso");
       }
     }, [
       horario,
       asistencia.inicializado,
       reduxInicializado,
       mensajeInformativo.mostrar,
+      consultaInicialCompletada, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
+      consultaInicialEnProceso, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
       consultarAsistenciaModo,
       determinarModoActual,
     ]);
 
-    // ✅ ACTUALIZAR ESTADO DEL BOTÓN - Solo depende de datos ESTABLES
+    // ✅ MODIFICAR el useEffect de actualización del botón
     useEffect(() => {
-      if (
-        (asistencia.inicializado || (handlerBase && !horario)) &&
-        reduxInicializado
-      ) {
+      // ✅ Verificar si todo está completamente inicializado
+      const estaCompleto =
+        reduxInicializado &&
+        asistenciaIDB &&
+        (rol === RolesSistema.Directivo ||
+          rol === RolesSistema.Responsable ||
+          handlerBase) &&
+        asistencia.inicializado;
+
+      if (estaCompleto) {
+        console.log("✅ SISTEMA COMPLETAMENTE INICIALIZADO");
+
+        // ✅ DESACTIVAR TIMER DE EMERGENCIA
+        if (timerEmergenciaActivo) {
+          console.log("⏰ Desactivando timer de emergencia - Todo está listo");
+          setTimerEmergenciaActivo(false);
+        }
+
         actualizarEstadoBoton();
       } else {
-        console.log(
-          "⏭️ No actualizar estado del botón - Esperando inicialización:",
-          {
-            asistenciaInicializada: asistencia.inicializado,
-            handlerDisponible: !!handlerBase,
-            horarioDisponible: !!horario,
-            reduxInicializado,
-          }
-        );
+        console.log("⏳ Sistema aún inicializando:", {
+          reduxInicializado,
+          asistenciaIDB: !!asistenciaIDB,
+          handlerBase: !!handlerBase,
+          asistenciaInicializada: asistencia.inicializado,
+          rol,
+          timerEmergenciaActivo,
+        });
       }
     }, [
-      asistencia.inicializado,
-      asistencia.entradaMarcada,
-      asistencia.salidaMarcada,
-      horario,
-      handlerBase,
       reduxInicializado,
+      asistenciaIDB,
+      handlerBase,
+      asistencia.inicializado,
+      rol,
+      timerEmergenciaActivo,
+      setTimerEmergenciaActivo,
       actualizarEstadoBoton,
     ]);
 
-    // ✅ CONSULTA CADA 5 MINUTOS - INTERVALO INDEPENDIENTE
+    // ✅ TIMER DE EMERGENCIA
     useEffect(() => {
+      if (!timerEmergenciaActivo) return;
+
+      console.log(
+        `⏰ Iniciando timer de emergencia: ${
+          TIMEOUT_EMERGENCIA_REINTENTO_MS / 1000
+        } segundos`
+      );
+
+      timerEmergenciaRef.current = setTimeout(() => {
+        console.log("🚨 TIMEOUT DE EMERGENCIA ALCANZADO");
+        reintentoForzadoEmergencia();
+      }, TIMEOUT_EMERGENCIA_REINTENTO_MS);
+
+      return () => {
+        if (timerEmergenciaRef.current) {
+          clearTimeout(timerEmergenciaRef.current);
+          timerEmergenciaRef.current = null;
+        }
+      };
+    }, [timerEmergenciaActivo, reintentoForzadoEmergencia]);
+
+    // ✅ 🔧 INTERVALO CORREGIDO (CON PROTECCIÓN ADICIONAL)
+    useEffect(() => {
+      // ✅ Si el timer de emergencia ya no está activo, siempre intentar configurar el intervalo
+      if (timerEmergenciaActivo) return; // Solo esperar durante los primeros 4 segundos
+
       if (
         !asistencia.inicializado ||
         !horario ||
         !reduxInicializado ||
-        mensajeInformativo.mostrar
-      )
+        mensajeInformativo.mostrar ||
+        !consultaInicialCompletada // ✅ 🔧 NUEVA CONDICIÓN CRÍTICA
+      ) {
+        console.log(
+          "⚠️ Condiciones no cumplidas para intervalo, pero timer de emergencia ya pasó"
+        );
+        // ✅ Después del timer de emergencia, intentar una consulta manual SOLO si es necesario
+        // if (
+        //   reduxInicializado &&
+        //   horario &&
+        //   !consultaInicialCompletada &&
+        //   !consultaInicialEnProceso
+        // ) {
+        //   console.log(
+        //     "🔄 Intentando consulta manual después de timer de emergencia"
+        //   );
+        //   const modoActual = determinarModoActual(horario);
+        //   if (modoActual.activo && modoActual.tipo) {
+        //     consultarAsistenciaModo(
+        //       modoActual.tipo,
+        //       "consulta post-timer emergencia"
+        //     );
+        //   }
+        // }
         return;
+      }
 
       console.log(
         `⏰ Configurando consulta cada ${
@@ -993,21 +1188,27 @@ const MarcarAsistenciaDePersonalButton = memo(
         }
       };
     }, [
+      timerEmergenciaActivo,
       asistencia.inicializado,
       horario,
       reduxInicializado,
       mensajeInformativo.mostrar,
+      consultaInicialCompletada, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
+      consultaInicialEnProceso, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
       consultaPeriodicaInteligente,
+      determinarModoActual,
+      consultarAsistenciaModo,
     ]);
 
-    // ✅ DETECTAR CAMBIO DE MODO SOLO CADA 10 MINUTOS (no cada segundo)
+    // ✅ 🔧 DETECTAR CAMBIO DE MODO CORREGIDO - Con protección contra duplicados
     useEffect(() => {
       if (
         !horaMinutoActual ||
         !asistencia.inicializado ||
         !horario ||
         !reduxInicializado ||
-        mensajeInformativo.mostrar
+        mensajeInformativo.mostrar ||
+        !consultaInicialCompletada // ✅ 🔧 NUEVA CONDICIÓN CRÍTICA
       )
         return;
 
@@ -1043,6 +1244,7 @@ const MarcarAsistenciaDePersonalButton = memo(
       horario,
       reduxInicializado,
       mensajeInformativo.mostrar,
+      consultaInicialCompletada, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
       consultarAsistenciaModo,
       determinarModoActual,
     ]);
@@ -1058,7 +1260,7 @@ const MarcarAsistenciaDePersonalButton = memo(
       );
     }, [delegarEvento, ocultarTooltip]);
 
-    // ✅ VISIBILIDAD DE PESTAÑA
+    // ✅ 🔧 VISIBILIDAD DE PESTAÑA CORREGIDA - Con protección contra duplicados
     useEffect(() => {
       const handleVisibility = () => {
         if (
@@ -1066,7 +1268,8 @@ const MarcarAsistenciaDePersonalButton = memo(
           asistencia.inicializado &&
           horario &&
           reduxInicializado &&
-          !mensajeInformativo.mostrar
+          !mensajeInformativo.mostrar &&
+          consultaInicialCompletada // ✅ 🔧 NUEVA CONDICIÓN CRÍTICA
         ) {
           console.log("👁️ Pestaña visible, verificando modo actual");
           const modoActual = determinarModoActual(horario);
@@ -1094,6 +1297,7 @@ const MarcarAsistenciaDePersonalButton = memo(
       horario,
       reduxInicializado,
       mensajeInformativo.mostrar,
+      consultaInicialCompletada, // ✅ 🔧 NUEVA DEPENDENCIA CRÍTICA
       consultarAsistenciaModo,
       determinarModoActual,
     ]);
@@ -1105,19 +1309,33 @@ const MarcarAsistenciaDePersonalButton = memo(
       }
     }, [estadoBoton.tipo, mensajeInformativo.mostrar, mostrarTooltip]);
 
-    // ✅ HANDLE CLICK
+    // ✅ HANDLE CLICK - No permitir click en estado de carga
     const handleClick = useCallback(() => {
-      if (!estadoBoton.visible) return;
+      if (!estadoBoton.visible || estadoBoton.esCarga) return;
 
       if (!tooltipOculto) ocultarTooltip();
       setMostrarModalTomarMiAsistencia(true);
-    }, [estadoBoton.visible, tooltipOculto, ocultarTooltip]);
+    }, [
+      estadoBoton.visible,
+      estadoBoton.esCarga,
+      tooltipOculto,
+      ocultarTooltip,
+    ]);
+
+    useEffect(() => {
+      console.log("🔄 Rol cambió, reseteando flags de consulta");
+      setConsultaInicialCompletada(false);
+      setConsultaInicialEnProceso(false);
+      consultaEnProcesoRef.current = false; // ✅ 🔧 AGREGAR ESTA LÍNEA
+    }, [rol]);
 
     // ✅ CLEANUP
     useEffect(() => {
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
         if (retryRef.current) clearTimeout(retryRef.current);
+        if (timerEmergenciaRef.current)
+          clearTimeout(timerEmergenciaRef.current);
       };
     }, []);
 
@@ -1185,6 +1403,7 @@ const MarcarAsistenciaDePersonalButton = memo(
         throw error; // Re-lanzar para que el modal lo maneje
       }
     }, [estadoBoton.tipo, horario, obtenerFechaActual, asistenciaIDB, rol]);
+
     // ✅ RENDER: Mensaje informativo o botón
     const mostrarTooltipActual = !tooltipOculto && !mensajeInformativo.mostrar;
 
@@ -1410,48 +1629,84 @@ const MarcarAsistenciaDePersonalButton = memo(
         .tooltip-animation {
             animation: tooltipFadeIn 0.4s ease-out, tooltipPulse 2s ease-in-out infinite 1s;
         }
+
+        @keyframes loadingPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow:
+              0 4px 15px rgba(0, 0, 0, 0.15),
+              0 1px 6px 1px rgba(59, 130, 246, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            transform: scale(1.02);
+            box-shadow:
+              0 6px 20px rgba(0, 0, 0, 0.2),
+              0 2px 8px 2px rgba(59, 130, 246, 0.35),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+          }
+        }
+
+        @keyframes spinLoader {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .button-enhanced-carga {
+          animation: loadingPulse 2s ease-in-out infinite;
+          cursor: not-allowed;
+        }
+
+        .loading-spinner {
+          animation: spinLoader 1s linear infinite;
+        }
+                
         `}
         </style>
 
-        {/* ✅ BOTÓN: Solo mostrar si es visible y no hay mensaje informativo */}
-        {estadoBoton.visible && !mensajeInformativo.mostrar && (
+        {/* ✅ BOTÓN: Ahora incluye estado de carga */}
+        {estadoBoton.visible && (
           <div
             className="fixed z-[102] right-0 Mover-NavBarFooter
-                     sxs-only:mr-3 sxs-only:mb-3
-                     xs-only:mr-4 xs-only:mb-4
-                     sm-only:mr-5 sm-only:mb-4
-                     mr-6 mb-5"
+             sxs-only:mr-3 sxs-only:mb-3
+             xs-only:mr-4 xs-only:mb-4
+             sm-only:mr-5 sm-only:mb-4
+             mr-6 mb-5"
             style={{ bottom: sidebar.height + 12 }}
           >
-            {/* Tooltip */}
-            {mostrarTooltipActual && (
+            {/* Tooltip - Solo mostrar si NO es estado de carga */}
+            {mostrarTooltipActual && !estadoBoton.esCarga && (
               <div
                 id="tooltip-mostrar-asistencia-personal"
                 className="absolute tooltip-animation
-                         sxs-only:right-14 sxs-only:top-1
-                         xs-only:right-16 xs-only:top-2
-                         sm-only:right-18 sm-only:top-2
-                         right-20 top-3"
+                 sxs-only:right-14 sxs-only:top-1
+                 xs-only:right-16 xs-only:top-2
+                 sm-only:right-18 sm-only:top-2
+                 right-20 top-3"
               >
                 <div
                   className={`${
                     estadoBoton.color === "verde"
                       ? "bg-azul-principal"
-                      : "bg-red-600"
+                      : estadoBoton.color === "rojizo"
+                      ? "bg-red-600"
+                      : "bg-blue-600"
                   } text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg relative
-                           sxs-only:px-2 sxs-only:py-1 sxs-only:text-xs
-                           xs-only:px-2 xs-only:py-1 xs-only:text-xs
-                           sm-only:px-3 sm-only:py-2 sm-only:text-sm
-                           whitespace-nowrap transition-all duration-300`}
+                   sxs-only:px-2 sxs-only:py-1 sxs-only:text-xs
+                   xs-only:px-2 xs-only:py-1 xs-only:text-xs
+                   sm-only:px-3 sm-only:py-2 sm-only:text-sm
+                   whitespace-nowrap transition-all duration-300`}
                 >
                   {estadoBoton.tooltip}
                   <div
                     className={`absolute top-1/2 transform -translate-y-1/2
-                           left-full border-l-4 border-y-4 border-y-transparent ${
-                             estadoBoton.color === "verde"
-                               ? "border-l-azul-principal"
-                               : "border-l-red-600"
-                           }`}
+                   left-full border-l-4 border-y-4 border-y-transparent ${
+                     estadoBoton.color === "verde"
+                       ? "border-l-azul-principal"
+                       : estadoBoton.color === "rojizo"
+                       ? "border-l-red-600"
+                       : "border-l-blue-600"
+                   }`}
                   ></div>
                 </div>
               </div>
@@ -1460,75 +1715,126 @@ const MarcarAsistenciaDePersonalButton = memo(
             {/* Botón */}
             <button
               onClick={handleClick}
-              title={`Registrar ${estadoBoton.tipo}`}
+              disabled={estadoBoton.esCarga}
+              title={
+                estadoBoton.esCarga
+                  ? "Inicializando..."
+                  : `Registrar ${estadoBoton.tipo}`
+              }
               className={`${
-                mostrarTooltipActual
+                estadoBoton.esCarga
+                  ? "button-enhanced-carga"
+                  : mostrarTooltipActual
                   ? estadoBoton.color === "verde"
                     ? "button-enhanced-verde"
                     : "button-enhanced-rojizo"
                   : "transition-all duration-300"
               }
-                     relative overflow-hidden aspect-square
-                     ${
-                       estadoBoton.color === "verde"
-                         ? "bg-gradient-to-br from-verde-principal to-green-600 hover:from-green-500 hover:to-green-700"
-                         : "bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800"
-                     }
-                     rounded-full flex items-center justify-center
-                     transition-all duration-300 ease-out
-                     hover:scale-110 active:scale-95
-                     shadow-[0_6px_20px_rgba(0,0,0,0.3),0_2px_8px_rgba(34,197,94,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
-                     hover:shadow-[0_10px_30px_rgba(0,0,0,0.35),0_4px_15px_rgba(34,197,94,0.5),inset_0_1px_0_rgba(255,255,255,0.3)]
-                     border-2 border-green-400/20
-                     sxs-only:w-12 sxs-only:h-12 sxs-only:p-2
-                     xs-only:w-14 xs-only:h-14 xs-only:p-3
-                     sm-only:w-16 sm-only:h-16 sm-only:p-3
-                     w-18 h-18 p-4`}
+             relative overflow-hidden aspect-square
+             ${
+               estadoBoton.color === "verde"
+                 ? "bg-gradient-to-br from-verde-principal to-green-600 hover:from-green-500 hover:to-green-700"
+                 : estadoBoton.color === "rojizo"
+                 ? "bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800"
+                 : "bg-gradient-to-br from-blue-500 to-blue-600" // Estado de carga
+             }
+             rounded-full flex items-center justify-center
+             transition-all duration-300 ease-out
+             ${
+               estadoBoton.esCarga
+                 ? "cursor-not-allowed"
+                 : "hover:scale-110 active:scale-95"
+             }
+             shadow-[0_6px_20px_rgba(0,0,0,0.3),0_2px_8px_rgba(34,197,94,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
+             ${
+               !estadoBoton.esCarga &&
+               "hover:shadow-[0_10px_30px_rgba(0,0,0,0.35),0_4px_15px_rgba(34,197,94,0.5),inset_0_1px_0_rgba(255,255,255,0.3)]"
+             }
+             border-2 ${
+               estadoBoton.color === "carga"
+                 ? "border-blue-400/20"
+                 : "border-green-400/20"
+             }
+             sxs-only:w-12 sxs-only:h-12 sxs-only:p-2
+             xs-only:w-14 xs-only:h-14 xs-only:p-3
+             sm-only:w-16 sm-only:h-16 sm-only:p-3
+             w-18 h-18 p-4`}
             >
-              {/* Efecto de brillo en hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform -translate-x-full hover:translate-x-full transition-transform duration-700"></div>
+              {/* Efecto de brillo en hover - solo si no es estado de carga */}
+              {!estadoBoton.esCarga && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform -translate-x-full hover:translate-x-full transition-transform duration-700"></div>
+              )}
 
-              <LapizFirmando className="text-white relative z-10 drop-shadow-sm sxs-only:w-6 xs-only:w-7 sm-only:w-8 w-8" />
+              {/* Contenido del botón */}
+              {estadoBoton.esCarga ? (
+                // ✅ Spinner de carga
+                <div className="loading-spinner relative z-10">
+                  <svg
+                    className="w-8 h-8 text-white sxs-only:w-6 xs-only:w-7 sm-only:w-8"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                </div>
+              ) : (
+                // ✅ Icono normal de lápiz
+                <LapizFirmando className="text-white relative z-10 drop-shadow-sm sxs-only:w-6 xs-only:w-7 sm-only:w-8 w-8" />
+              )}
 
-              {/* Punto de notificación cuando hay tooltip */}
-              {mostrarTooltipActual && (
+              {/* Punto de notificación cuando hay tooltip - Solo si NO es estado de carga */}
+              {mostrarTooltipActual && !estadoBoton.esCarga && (
                 <div
                   className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white animate-ping
-                         sxs-only:w-2 sxs-only:h-2 ${
-                           estadoBoton.color === "verde"
-                             ? "bg-blue-500"
-                             : "bg-yellow-500"
-                         }`}
+                 sxs-only:w-2 sxs-only:h-2 ${
+                   estadoBoton.color === "verde"
+                     ? "bg-blue-500"
+                     : "bg-yellow-500"
+                 }`}
                 />
               )}
 
-              {/* Indicadores de estado */}
-              <div className="absolute -bottom-1 -left-1 flex space-x-1">
-                <div
-                  className={`w-2 h-2 rounded-full border border-white transition-all ${
-                    asistencia.entradaMarcada
-                      ? "bg-green-400 scale-110"
-                      : "bg-gray-400"
-                  }`}
-                  title={
-                    asistencia.entradaMarcada
-                      ? "Entrada registrada"
-                      : "Entrada pendiente"
-                  }
-                />
-                <div
-                  className={`w-2 h-2 rounded-full border border-white transition-all ${
-                    asistencia.salidaMarcada
-                      ? "bg-green-400 scale-110"
-                      : "bg-gray-400"
-                  }`}
-                  title={
-                    asistencia.salidaMarcada
-                      ? "Salida registrada"
-                      : "Salida pendiente"
-                  }
-                />
-              </div>
+              {/* Indicadores de estado - Solo si NO es estado de carga */}
+              {!estadoBoton.esCarga && (
+                <div className="absolute -bottom-1 -left-1 flex space-x-1">
+                  <div
+                    className={`w-2 h-2 rounded-full border border-white transition-all ${
+                      asistencia.entradaMarcada
+                        ? "bg-green-400 scale-110"
+                        : "bg-gray-400"
+                    }`}
+                    title={
+                      asistencia.entradaMarcada
+                        ? "Entrada registrada"
+                        : "Entrada pendiente"
+                    }
+                  />
+                  <div
+                    className={`w-2 h-2 rounded-full border border-white transition-all ${
+                      asistencia.salidaMarcada
+                        ? "bg-green-400 scale-110"
+                        : "bg-gray-400"
+                    }`}
+                    title={
+                      asistencia.salidaMarcada
+                        ? "Salida registrada"
+                        : "Salida pendiente"
+                    }
+                  />
+                </div>
+              )}
             </button>
           </div>
         )}

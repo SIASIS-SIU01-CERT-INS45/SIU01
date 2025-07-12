@@ -23,7 +23,7 @@ const TESTING_EXPLICITO = false; // ✅ Cambiar a true para mostrar mensajes de 
 
 // 🎯 Configuración de validación GPS según entorno
 const REQUERIR_VALIDACION_GPS_SEGUN_ENTORNO: Record<Entorno, boolean> = {
-  [Entorno.LOCAL]: true,
+  [Entorno.LOCAL]: false,
   [Entorno.DESARROLLO]: true, // ✅ GPS habilitado (solicitar permisos)
   [Entorno.CERTIFICACION]: true,
   [Entorno.PRODUCCION]: true,

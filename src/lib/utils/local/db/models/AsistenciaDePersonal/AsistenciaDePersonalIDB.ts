@@ -30,7 +30,7 @@ import {
   TipoAsistencia,
 } from "@/interfaces/shared/AsistenciaRequests";
 import { AsistenciaDePersonalMapper } from "./services/AsistenciaDePersonalMapper";
-import { AsistenciaDePersonalDateHelper } from "./services/AsistenciaDePersonalDateHelper";
+import { AsistenciaDateHelper } from "../utils/AsistenciaDateHelper";
 import { AsistenciaDePersonalValidator } from "./services/AsistenciaDePersonalValidator";
 import { AsistenciaDePersonalRepository } from "./services/AsistenciaDePersonalRepository";
 import { AsistenciaDePersonalCacheManager } from "./services/AsistenciaDePersonalCacheManager";
@@ -56,7 +56,7 @@ import { AsistenciaPersonalSyncService } from "./services/AsistenciaDePersonalSy
 export class AsistenciaDePersonalIDB {
   // Servicios especializados
   private mapper: AsistenciaDePersonalMapper;
-  private dateHelper: AsistenciaDePersonalDateHelper;
+  private dateHelper: AsistenciaDateHelper;
   private validator: AsistenciaDePersonalValidator;
   private repository: AsistenciaDePersonalRepository;
   private cacheManager: AsistenciaDePersonalCacheManager;
@@ -72,7 +72,7 @@ export class AsistenciaDePersonalIDB {
   ) {
     // Inicializar servicios base
     this.mapper = new AsistenciaDePersonalMapper();
-    this.dateHelper = new AsistenciaDePersonalDateHelper();
+    this.dateHelper = new AsistenciaDateHelper();
     this.errorHandler = new AsistenciaDePersonalErrorHandler(
       setIsSomethingLoading,
       setError,
@@ -299,16 +299,16 @@ export class AsistenciaDePersonalIDB {
       this.errorHandler.clearErrors();
       this.errorHandler.setLoading(true);
 
-      const { rol, id_o_dni, mes } = params;
+      const { rol, idUsuario, mes } = params;
 
       const resultado = await this.syncService.obtenerAsistenciaMensualConAPI(
         rol,
-        id_o_dni,
+        idUsuario,
         mes
       );
 
       console.log(
-        `📊 Consulta completada para DNI o ID ${id_o_dni} - mes ${mes}: ${resultado.mensaje}`
+        `📊 Consulta completada para ID ${idUsuario} - mes ${mes}: ${resultado.mensaje}`
       );
 
       return resultado;
@@ -390,7 +390,7 @@ export class AsistenciaDePersonalIDB {
         return;
       }
 
-      const miDNI = (handler as any).getMiDNI();
+      const miDNI = (handler as any).getMiIdentificador();
       if (!miDNI) {
         console.warn("⚠️ No se pudo obtener mi DNI para sincronizar marcado");
         return;
@@ -535,7 +535,7 @@ export class AsistenciaDePersonalIDB {
       this.errorHandler.setLoading(true);
       this.errorHandler.clearErrors();
 
-      const { id_o_dni, rol, modoRegistro, dia, mes } = params;
+      const { idUsuario, rol, modoRegistro, dia, mes } = params;
 
       // Usar fecha Redux si no se proporcionan día/mes
       const fechaActualRedux =
@@ -553,7 +553,7 @@ export class AsistenciaDePersonalIDB {
         this.dateHelper.generarFechaString(mesActual, diaActual);
 
       console.log(
-        `🗑️ Iniciando eliminación COMPLETA para DNI: ${id_o_dni}, Día: ${diaActual}, Mes: ${mesActual}`
+        `🗑️ Iniciando eliminación COMPLETA para DNI: ${idUsuario}, Día: ${diaActual}, Mes: ${mesActual}`
       );
 
       let eliminadoLocal = false;
@@ -564,7 +564,7 @@ export class AsistenciaDePersonalIDB {
       try {
         const resultadoRedis =
           await this.apiClient.eliminarAsistenciaConReintentos(
-            id_o_dni,
+            idUsuario,
             rol,
             modoRegistro
           );
@@ -582,7 +582,7 @@ export class AsistenciaDePersonalIDB {
       try {
         const resultadoCache =
           await this.cacheManager.eliminarAsistenciaDelCache(
-            id_o_dni,
+            idUsuario,
             rol,
             modoRegistro,
             fechaString
@@ -604,7 +604,7 @@ export class AsistenciaDePersonalIDB {
           await this.repository.eliminarDiaDeRegistroMensual(
             tipoPersonal,
             modoRegistro,
-            id_o_dni,
+            idUsuario,
             mesActual,
             diaActual
           );
@@ -715,7 +715,7 @@ export class AsistenciaDePersonalIDB {
         };
       }
 
-      const miDNI = (handler as any).getMiDNI();
+      const miDNI = (handler as any).getMiIdentificador();
       if (!miDNI) {
         return {
           marcada: false,
@@ -1058,7 +1058,7 @@ export class AsistenciaDePersonalIDB {
 
       for (const resultado of datosRedis.Resultados) {
         try {
-          const dni = resultado.ID_o_DNI;
+          const dni = resultado.idUsuario;
 
           // Verificar si ya existe registro para este día
           const yaExiste =
@@ -1146,7 +1146,10 @@ export class AsistenciaDePersonalIDB {
             `✅ Sincronizado: ${dni} - día ${dia}/${mes} (${estado})`
           );
         } catch (error) {
-          console.error(`❌ Error sincronizando ${resultado.ID_o_DNI}:`, error);
+          console.error(
+            `❌ Error sincronizando ${resultado.idUsuario}:`,
+            error
+          );
           stats.errores++;
         }
       }
@@ -1320,7 +1323,7 @@ export class AsistenciaDePersonalIDB {
    * ✅ SOLO LOCAL: Sin APIs, solo IndexedDB y cache temporal
    */
   public async consultarAsistenciaDeHoyDePersonal(
-    id_o_dni: string | number,
+    idUsuario: string | number,
     modoRegistro: ModoRegistro,
     rol: RolesSistema
   ): Promise<{
@@ -1347,7 +1350,7 @@ export class AsistenciaDePersonalIDB {
       const { diaActual, mesActual } = infoFecha;
 
       console.log(
-        `🔍 Consultando asistencia de hoy LOCAL: ${id_o_dni} - ${modoRegistro} - día ${diaActual}/${mesActual}`
+        `🔍 Consultando asistencia de hoy LOCAL: ${idUsuario} - ${modoRegistro} - día ${diaActual}/${mesActual}`
       );
 
       // PASO 1: Consultar en registro mensual
@@ -1355,7 +1358,7 @@ export class AsistenciaDePersonalIDB {
       const registroMensual = await this.repository.obtenerRegistroMensual(
         tipoPersonal,
         modoRegistro,
-        id_o_dni,
+        idUsuario,
         mesActual
       );
 
@@ -1383,7 +1386,7 @@ export class AsistenciaDePersonalIDB {
           await this.cacheManager.consultarCacheAsistenciaHoyDirecto(
             actor,
             modoRegistro,
-            id_o_dni,
+            idUsuario,
             fechaHoy
           );
 
@@ -1456,7 +1459,7 @@ export class AsistenciaDePersonalIDB {
         };
       }
 
-      const miDNI = (handler as any).getMiDNI();
+      const miDNI = (handler as any).getMiIdentificador();
       if (!miDNI) {
         return {
           marcada: false,
@@ -1491,7 +1494,7 @@ export class AsistenciaDePersonalIDB {
    * ✅ SOLO LOCAL: Sin APIs, solo registros locales
    */
   public async marcarAsistenciaEnLocal(
-    id_o_dni: string | number,
+    idUsuario: string | number,
     rol: RolesSistema,
     modoRegistro: ModoRegistro,
     registroAsistencia: RegistroEntradaSalida
@@ -1509,7 +1512,7 @@ export class AsistenciaDePersonalIDB {
       const { diaActual, mesActual } = infoFecha;
 
       console.log(
-        `📝 Marcando asistencia LOCAL: ${id_o_dni} - ${modoRegistro} - día ${diaActual}/${mesActual}`
+        `📝 Marcando asistencia LOCAL: ${idUsuario} - ${modoRegistro} - día ${diaActual}/${mesActual}`
       );
 
       const tipoPersonal = this.mapper.obtenerTipoPersonalDesdeRolOActor(rol);
@@ -1518,7 +1521,7 @@ export class AsistenciaDePersonalIDB {
       const registroExistente = await this.repository.obtenerRegistroMensual(
         tipoPersonal,
         modoRegistro,
-        id_o_dni,
+        idUsuario,
         mesActual
       );
 
@@ -1532,7 +1535,7 @@ export class AsistenciaDePersonalIDB {
           await this.repository.actualizarRegistroExistente(
             tipoPersonal,
             modoRegistro,
-            String(id_o_dni),
+            String(idUsuario),
             mesActual,
             diaActual,
             registroAsistencia,
@@ -1574,7 +1577,7 @@ export class AsistenciaDePersonalIDB {
         }
 
         const asistenciaHuerfana = this.cacheManager.crearAsistenciaParaCache(
-          String(id_o_dni),
+          String(idUsuario),
           actor,
           modoRegistro,
           registroAsistencia.timestamp,
@@ -1633,7 +1636,7 @@ export class AsistenciaDePersonalIDB {
    * ✅ SOLO LOCAL: Sin APIs, solo registros locales
    */
   public async eliminarAsistenciaEnLocal(
-    id_o_dni: string | number,
+    idUsuario: string | number,
     rol: RolesSistema,
     modoRegistro: ModoRegistro
   ): Promise<EliminacionResult> {
@@ -1651,7 +1654,7 @@ export class AsistenciaDePersonalIDB {
       const fechaString = this.dateHelper.obtenerFechaStringActual();
 
       console.log(
-        `🗑️ Eliminando asistencia LOCAL: ${id_o_dni} - ${modoRegistro} - día ${diaActual}/${mesActual}`
+        `🗑️ Eliminando asistencia LOCAL: ${idUsuario} - ${modoRegistro} - día ${diaActual}/${mesActual}`
       );
 
       let eliminadoLocal = false;
@@ -1662,7 +1665,7 @@ export class AsistenciaDePersonalIDB {
         if (fechaString) {
           const resultadoCache =
             await this.cacheManager.eliminarAsistenciaDelCache(
-              id_o_dni,
+              idUsuario,
               rol,
               modoRegistro,
               fechaString
@@ -1685,7 +1688,7 @@ export class AsistenciaDePersonalIDB {
           await this.repository.eliminarDiaDeRegistroMensual(
             tipoPersonal,
             modoRegistro,
-            id_o_dni,
+            idUsuario,
             mesActual,
             diaActual
           );

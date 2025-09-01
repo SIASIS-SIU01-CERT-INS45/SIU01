@@ -6,7 +6,7 @@ import { EstadosAsistenciaPersonal } from "@/interfaces/shared/EstadosAsistencia
 import { EstadosAsistencia } from "@/interfaces/shared/EstadosAsistenciaEstudiantes";
 import { CANTIDAD_MINUTOS_MAXIMO_PARA_DESCARTE_ASISTENCIAS } from "@/constants/CANTIDAD_MINUTOS_MAXIMO_PARA_DESCARTE_ASISTENCIAS";
 import { TablasLocal } from "@/interfaces/shared/TablasSistema";
-import { AsistenciaDePersonalDateHelper } from "../AsistenciaDePersonal/services/AsistenciaDePersonalDateHelper";
+import { AsistenciaDateHelper } from "../utils/AsistenciaDateHelper";
 import {
   SEGUNDOS_TOLERANCIA_ENTRADA_PERSONAL,
   SEGUNDOS_TOLERANCIA_SALIDA_PERSONAL,
@@ -43,7 +43,7 @@ export type AsistenciaHoy = AsistenciaPersonalHoy | AsistenciaEstudianteHoy;
 
 // ✅ INTERFAZ: Para consultas específicas
 export interface ConsultaAsistenciaHoy {
-  id_o_dni: string | number;
+  idUsuario: string | number;
   actor: ActoresSistema;
   modoRegistro: ModoRegistro;
   tipoAsistencia: TipoAsistencia;
@@ -67,10 +67,10 @@ export interface ConsultaAsistenciaHoy {
  */
 export class AsistenciasTomadasHoyIDB {
   private nombreTabla: string = TablasLocal.Tabla_Asistencias_Tomadas_Hoy;
-  private dateHelper: AsistenciaDePersonalDateHelper; // ✅ NUEVO: Dependencia de DateHelper
+  private dateHelper: AsistenciaDateHelper; // ✅ NUEVO: Dependencia de DateHelper
   private intervalos: NodeJS.Timeout[] = []; // ✅ NUEVO: Para limpiar intervalos
 
-  constructor(dateHelper: AsistenciaDePersonalDateHelper) {
+  constructor(dateHelper: AsistenciaDateHelper) {
     // ✅ NUEVO: Constructor con dependencia
     this.dateHelper = dateHelper;
   }
@@ -88,7 +88,7 @@ export class AsistenciasTomadasHoyIDB {
       consulta.fecha ||
       this.dateHelper.obtenerFechaStringActual() ||
       this.obtenerFechaHoyFallback();
-    const base = `${fecha}:${consulta.modoRegistro}:${consulta.actor}:${consulta.id_o_dni}`;
+    const base = `${fecha}:${consulta.modoRegistro}:${consulta.actor}:${consulta.idUsuario}`;
 
     // ✅ FORMATO ESTUDIANTE: Siempre incluir nivel, grado y sección
     if (consulta.actor === ActoresSistema.Estudiante) {

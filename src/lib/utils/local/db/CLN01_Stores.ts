@@ -1,4 +1,6 @@
-export const CLN01_Stores = {
+import { TablasLocal } from "@/interfaces/shared/TablasSistema";
+
+export const CLN01_Stores: Record<TablasLocal, any> = {
   // ========================================
   // STORES PARA DATOS DE SESIÓN Y CACHE
   // ========================================
@@ -7,7 +9,7 @@ export const CLN01_Stores = {
     autoIncrement: false,
     indexes: [],
   },
-  datos_asistencia_hoy: {
+  archivos_asistencia_hoy: {
     keyPath: null,
     autoIncrement: false,
     indexes: [],
@@ -17,34 +19,8 @@ export const CLN01_Stores = {
   // USUARIOS Y ROLES
   // ========================================
 
-  // ✅ AGREGADO: Directivos (faltaba completamente)
-  directivos: {
-    keyPath: "Id_Directivo",
-    autoIncrement: true,
-    indexes: [
-      { name: "por_dni", keyPath: "DNI", options: { unique: true } },
-      {
-        name: "por_nombre_usuario",
-        keyPath: "Nombre_Usuario",
-        options: { unique: true },
-      },
-      {
-        name: "por_correo",
-        keyPath: "Correo_Electronico",
-        options: { unique: true },
-      },
-      { name: "por_nombres", keyPath: "Nombres", options: { unique: false } },
-      {
-        name: "por_apellidos",
-        keyPath: "Apellidos",
-        options: { unique: false },
-      },
-      { name: "por_genero", keyPath: "Genero", options: { unique: false } },
-    ],
-  },
-
   estudiantes: {
-    keyPath: "DNI_Estudiante",
+    keyPath: "Id_Estudiante", // Mantiene DNI porque los estudiantes no cambiaron
     autoIncrement: false,
     indexes: [
       { name: "por_nombres", keyPath: "Nombres", options: { unique: false } },
@@ -59,7 +35,7 @@ export const CLN01_Stores = {
   },
 
   responsables: {
-    keyPath: "DNI_Responsable",
+    keyPath: "DNI_Responsable", // Mantiene DNI porque los responsables no cambiaron
     autoIncrement: false,
     indexes: [
       {
@@ -87,7 +63,7 @@ export const CLN01_Stores = {
       },
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_tipo", keyPath: "Tipo", options: { unique: false } },
@@ -95,7 +71,7 @@ export const CLN01_Stores = {
   },
 
   profesores_primaria: {
-    keyPath: "DNI_Profesor_Primaria",
+    keyPath: "Id_Profesor_Primaria", // Usa Id_ en lugar de DNI_
     autoIncrement: false,
     indexes: [
       {
@@ -114,7 +90,7 @@ export const CLN01_Stores = {
   },
 
   profesores_secundaria: {
-    keyPath: "DNI_Profesor_Secundaria",
+    keyPath: "Id_Profesor_Secundaria", // Usa Id_ en lugar de DNI_
     autoIncrement: false,
     indexes: [
       {
@@ -133,7 +109,7 @@ export const CLN01_Stores = {
   },
 
   auxiliares: {
-    keyPath: "DNI_Auxiliar",
+    keyPath: "Id_Auxiliar", // Usa Id_ en lugar de DNI_
     autoIncrement: false,
     indexes: [
       {
@@ -152,7 +128,7 @@ export const CLN01_Stores = {
   },
 
   personal_administrativo: {
-    keyPath: "DNI_Personal_Administrativo",
+    keyPath: "Id_Personal_Administrativo", // Usa Id_ en lugar de DNI_
     autoIncrement: false,
     indexes: [
       {
@@ -189,12 +165,12 @@ export const CLN01_Stores = {
       },
       {
         name: "por_profesor_primaria",
-        keyPath: "DNI_Profesor_Primaria",
+        keyPath: "Id_Profesor_Primaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       {
         name: "por_profesor_secundaria",
-        keyPath: "DNI_Profesor_Secundaria",
+        keyPath: "Id_Profesor_Secundaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
     ],
@@ -207,7 +183,7 @@ export const CLN01_Stores = {
       { name: "por_dia", keyPath: "Dia_Semana", options: { unique: false } },
       {
         name: "por_profesor",
-        keyPath: "DNI_Profesor_Secundaria",
+        keyPath: "Id_Profesor_Secundaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       {
@@ -223,54 +199,54 @@ export const CLN01_Stores = {
   // ========================================
 
   // ✅ AGREGADO: Horarios por días - Personal Administrativo
-  horarios_por_dias_personal_administrativo: {
-    keyPath: "Id_Horario_Por_Dia_P_Administrativo",
-    autoIncrement: true,
-    indexes: [
-      {
-        name: "por_personal_administrativo",
-        keyPath: "DNI_Personal_Administrativo",
-        options: { unique: false },
-      },
-      { name: "por_dia", keyPath: "Dia", options: { unique: false } },
-      {
-        name: "por_personal_dia",
-        keyPath: ["DNI_Personal_Administrativo", "Dia"],
-        options: { unique: true },
-      },
-      {
-        name: "por_hora_inicio",
-        keyPath: "Hora_Inicio",
-        options: { unique: false },
-      },
-      { name: "por_hora_fin", keyPath: "Hora_Fin", options: { unique: false } },
-    ],
-  },
+  // horarios_por_dias_personal_administrativo: {
+  //   keyPath: "Id_Horario_Por_Dia_P_Administrativo",
+  //   autoIncrement: true,
+  //   indexes: [
+  //     {
+  //       name: "por_personal_administrativo",
+  //       keyPath: "Id_Personal_Administrativo", // Cambió de DNI_ a Id_
+  //       options: { unique: false },
+  //     },
+  //     { name: "por_dia", keyPath: "Dia", options: { unique: false } },
+  //     {
+  //       name: "por_personal_dia",
+  //       keyPath: ["Id_Personal_Administrativo", "Dia"], // Cambió de DNI_ a Id_
+  //       options: { unique: true },
+  //     },
+  //     {
+  //       name: "por_hora_inicio",
+  //       keyPath: "Hora_Inicio",
+  //       options: { unique: false },
+  //     },
+  //     { name: "por_hora_fin", keyPath: "Hora_Fin", options: { unique: false } },
+  //   ],
+  // },
 
   // ✅ AGREGADO: Horarios por días - Directivos
-  horarios_por_dias_directivos: {
-    keyPath: "Id_Horario_Por_Dia_Directivo",
-    autoIncrement: true,
-    indexes: [
-      {
-        name: "por_directivo",
-        keyPath: "Id_Directivo",
-        options: { unique: false },
-      },
-      { name: "por_dia", keyPath: "Dia", options: { unique: false } },
-      {
-        name: "por_directivo_dia",
-        keyPath: ["Id_Directivo", "Dia"],
-        options: { unique: true },
-      },
-      {
-        name: "por_hora_inicio",
-        keyPath: "Hora_Inicio",
-        options: { unique: false },
-      },
-      { name: "por_hora_fin", keyPath: "Hora_Fin", options: { unique: false } },
-    ],
-  },
+  // horarios_por_dias_directivos: {
+  //   keyPath: "Id_Horario_Por_Dia_Directivo",
+  //   autoIncrement: true,
+  //   indexes: [
+  //     {
+  //       name: "por_directivo",
+  //       keyPath: "Id_Directivo", // Mantiene Id_Directivo (es diferente)
+  //       options: { unique: false },
+  //     },
+  //     { name: "por_dia", keyPath: "Dia", options: { unique: false } },
+  //     {
+  //       name: "por_directivo_dia",
+  //       keyPath: ["Id_Directivo", "Dia"],
+  //       options: { unique: true },
+  //     },
+  //     {
+  //       name: "por_hora_inicio",
+  //       keyPath: "Hora_Inicio",
+  //       options: { unique: false },
+  //     },
+  //     { name: "por_hora_fin", keyPath: "Hora_Fin", options: { unique: false } },
+  //   ],
+  // },
 
   // ========================================
   // CONTROL DE ASISTENCIA DEL PERSONAL
@@ -283,13 +259,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_profesor",
-        keyPath: "DNI_Profesor_Primaria",
+        keyPath: "Id_Profesor_Primaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_profesor_mes",
-        keyPath: ["DNI_Profesor_Primaria", "Mes"],
+        keyPath: ["Id_Profesor_Primaria", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -307,13 +283,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_profesor",
-        keyPath: "DNI_Profesor_Primaria",
+        keyPath: "Id_Profesor_Primaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_profesor_mes",
-        keyPath: ["DNI_Profesor_Primaria", "Mes"],
+        keyPath: ["Id_Profesor_Primaria", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -332,13 +308,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_profesor",
-        keyPath: "DNI_Profesor_Secundaria",
+        keyPath: "Id_Profesor_Secundaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_profesor_mes",
-        keyPath: ["DNI_Profesor_Secundaria", "Mes"],
+        keyPath: ["Id_Profesor_Secundaria", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -356,13 +332,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_profesor",
-        keyPath: "DNI_Profesor_Secundaria",
+        keyPath: "Id_Profesor_Secundaria", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_profesor_mes",
-        keyPath: ["DNI_Profesor_Secundaria", "Mes"],
+        keyPath: ["Id_Profesor_Secundaria", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -381,13 +357,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_auxiliar",
-        keyPath: "DNI_Auxiliar",
+        keyPath: "Id_Auxiliar", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_auxiliar_mes",
-        keyPath: ["DNI_Auxiliar", "Mes"],
+        keyPath: ["Id_Auxiliar", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -405,13 +381,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_auxiliar",
-        keyPath: "DNI_Auxiliar",
+        keyPath: "Id_Auxiliar", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_auxiliar_mes",
-        keyPath: ["DNI_Auxiliar", "Mes"],
+        keyPath: ["Id_Auxiliar", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -430,13 +406,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_administrativo",
-        keyPath: "DNI_Personal_Administrativo",
+        keyPath: "Id_Personal_Administrativo", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_administrativo_mes",
-        keyPath: ["DNI_Personal_Administrativo", "Mes"],
+        keyPath: ["Id_Personal_Administrativo", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -454,13 +430,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_administrativo",
-        keyPath: "DNI_Personal_Administrativo",
+        keyPath: "Id_Personal_Administrativo", // Cambió de DNI_ a Id_
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_administrativo_mes",
-        keyPath: ["DNI_Personal_Administrativo", "Mes"],
+        keyPath: ["Id_Personal_Administrativo", "Mes"], // Cambió de DNI_ a Id_
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -473,13 +449,13 @@ export const CLN01_Stores = {
   },
 
   // ✅ AGREGADO: DIRECTIVOS
-  control_entrada_mensual_directivos: {
+  control_entrada_directivos: {
     keyPath: "Id_C_E_M_P_Directivo",
     autoIncrement: true,
     indexes: [
       {
         name: "por_directivo",
-        keyPath: "Id_Directivo",
+        keyPath: "Id_Directivo", // Mantiene Id_Directivo
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
@@ -497,13 +473,13 @@ export const CLN01_Stores = {
     ],
   },
 
-  control_salida_mensual_directivos: {
+  control_salida_directivos: {
     keyPath: "Id_C_S_M_P_Directivo",
     autoIncrement: true,
     indexes: [
       {
         name: "por_directivo",
-        keyPath: "Id_Directivo",
+        keyPath: "Id_Directivo", // Mantiene Id_Directivo
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
@@ -532,13 +508,13 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
       // ✅ NUEVO: Índice para ultima_fecha_actualizacion
@@ -556,16 +532,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -580,16 +555,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -604,16 +578,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -628,16 +601,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -652,16 +624,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -677,16 +648,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -701,16 +671,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -725,16 +694,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -749,16 +717,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -773,16 +740,15 @@ export const CLN01_Stores = {
     indexes: [
       {
         name: "por_estudiante",
-        keyPath: "DNI_Estudiante",
+        keyPath: "Id_Estudiante",
         options: { unique: false },
       },
       { name: "por_mes", keyPath: "Mes", options: { unique: false } },
       {
         name: "por_estudiante_mes",
-        keyPath: ["DNI_Estudiante", "Mes"],
+        keyPath: ["Id_Estudiante", "Mes"],
         options: { unique: true },
       },
-      // ✅ NUEVO: Índice para ultima_fecha_actualizacion
       {
         name: "por_ultima_fecha_actualizacion",
         keyPath: "ultima_fecha_actualizacion",
@@ -796,9 +762,11 @@ export const CLN01_Stores = {
   // ========================================
 
   bloqueo_roles: {
-    keyPath: "Id_Bloqueo_Rol",
-    autoIncrement: true,
-    indexes: [{ name: "por_rol", keyPath: "Rol", options: { unique: true } }],
+    keyPath: "Rol", // Ahora usa Rol como PK en lugar de Id_Bloqueo_Rol
+    autoIncrement: false,
+    indexes: [
+      // 🗑️ REMOVIDO: ya no necesita índice por_rol porque Rol es la PK
+    ],
   },
 
   ajustes_generales_sistema: {
@@ -949,30 +917,6 @@ export const CLN01_Stores = {
     ],
   },
 
-  // ✅ AGREGADO: Archivos respaldo Google Drive
-  archivos_respaldo_google_drive: {
-    keyPath: "Id_Archivo_Respaldo",
-    autoIncrement: true,
-    indexes: [
-      {
-        name: "por_nombre_archivo",
-        keyPath: "Nombre_Archivo",
-        options: { unique: true },
-      },
-      {
-        name: "por_google_drive_id",
-        keyPath: "Google_Drive_Id",
-        options: { unique: true },
-      },
-      {
-        name: "por_ultima_modificacion",
-        keyPath: "Ultima_Modificacion",
-        options: { unique: false },
-      },
-    ],
-  },
-
-  // ✅ AGREGADO: Vacaciones interescolares
   vacaciones_interescolares: {
     keyPath: "Id_Vacacion_Interescolar",
     autoIncrement: true,
@@ -1040,7 +984,11 @@ export const CLN01_Stores = {
     keyPath: "clave",
     autoIncrement: false,
     indexes: [
-      { name: "por_dni", keyPath: "dni", options: { unique: false } },
+      {
+        name: "por_identificador",
+        keyPath: "identificador",
+        options: { unique: false },
+      },
       { name: "por_fecha", keyPath: "fecha", options: { unique: false } },
       { name: "por_actor", keyPath: "actor", options: { unique: false } },
       {
@@ -1059,8 +1007,8 @@ export const CLN01_Stores = {
         options: { unique: false },
       },
       {
-        name: "por_dni_modo",
-        keyPath: ["dni", "modoRegistro"],
+        name: "por_identificador_modo",
+        keyPath: ["identificador", "modoRegistro"],
         options: { unique: false },
       },
       {
@@ -1069,12 +1017,13 @@ export const CLN01_Stores = {
         options: { unique: false },
       },
       {
-        name: "por_fecha_dni",
-        keyPath: ["fecha", "dni"],
+        name: "por_fecha_identificador",
+        keyPath: ["fecha", "identificador"],
         options: { unique: false },
       },
     ],
   },
+
   usuarios_genericos_cache: {
     keyPath: "clave_busqueda",
     autoIncrement: false,
@@ -1090,6 +1039,38 @@ export const CLN01_Stores = {
       {
         name: "por_rol_criterio",
         keyPath: ["rol", "criterio"],
+        options: { unique: false },
+      },
+    ],
+  },
+
+  cola_asistencias_escolares: {
+    keyPath: "NumeroDeOrden",
+    autoIncrement: false,
+    indexes: [
+      {
+        name: "por_estudiante",
+        keyPath: "Id_Estudiante",
+        options: { unique: false },
+      },
+      {
+        name: "por_tipo_asistencia",
+        keyPath: "TipoAsistencia",
+        options: { unique: false },
+      },
+      {
+        name: "por_desfase_segundos",
+        keyPath: "DesfaseSegundos",
+        options: { unique: false },
+      },
+      {
+        name: "por_estudiante_tipo",
+        keyPath: ["Id_Estudiante", "TipoAsistencia"],
+        options: { unique: false },
+      },
+      {
+        name: "por_tipo_desfase",
+        keyPath: ["TipoAsistencia", "DesfaseSegundos"],
         options: { unique: false },
       },
     ],

@@ -11,7 +11,7 @@ import {
   TipoAsistencia,
 } from "@/interfaces/shared/AsistenciaRequests";
 import { Meses } from "@/interfaces/shared/Meses";
-import { EstadosAsistencia } from "@/interfaces/shared/EstadosAsistenciaEstudiantes";
+
 
 /**
  * Mapea un rol del sistema al actor correspondiente para consultas de asistencia personal
@@ -42,8 +42,8 @@ const validarPermisos = (
   rol: RolesSistema,
   actor: ActoresSistema,
   tipoAsistencia: TipoAsistencia,
-  idODniConsulta: string | null,
-  miIdODni: string,
+  idConsulta: string | null,
+  miid: string,
   esConsultaPropia: boolean = false,
   grado?: string | null,
   seccion?: string | null,
@@ -90,10 +90,10 @@ const validarPermisos = (
           };
         }
       } else {
-        // Para asistencia personal: si es consulta propia, permitir sin ID_o_DNI
+        // Para asistencia personal: si es consulta propia, permitir sin idUsuario
         if (esConsultaPropia) return { esValido: true };
-        // Para consulta de otros, verificar que sea su propio ID_o_DNI
-        if (!idODniConsulta || idODniConsulta !== miIdODni) {
+        // Para consulta de otros, verificar que sea su propio idUsuario
+        if (!idConsulta || idConsulta !== miid) {
           return {
             esValido: false,
             mensaje:
@@ -130,10 +130,10 @@ const validarPermisos = (
           };
         }
       } else {
-        // Para asistencia personal: si es consulta propia, permitir sin ID_o_DNI
+        // Para asistencia personal: si es consulta propia, permitir sin idUsuario
         if (esConsultaPropia) return { esValido: true };
-        // Para consulta de otros, verificar que sea su propio ID_o_DNI
-        if (!idODniConsulta || idODniConsulta !== miIdODni) {
+        // Para consulta de otros, verificar que sea su propio idUsuario
+        if (!idConsulta || idConsulta !== miid) {
           return {
             esValido: false,
             mensaje:
@@ -159,10 +159,10 @@ const validarPermisos = (
             "Los profesores de secundaria no pueden consultar asistencias de estudiantes",
         };
       } else {
-        // Para asistencia personal: si es consulta propia, permitir sin ID_o_DNI
+        // Para asistencia personal: si es consulta propia, permitir sin idUsuario
         if (esConsultaPropia) return { esValido: true };
-        // Para consulta de otros, verificar que sea su propio ID_o_DNI
-        if (!idODniConsulta || idODniConsulta !== miIdODni) {
+        // Para consulta de otros, verificar que sea su propio idUsuario
+        if (!idConsulta || idConsulta !== miid) {
           return {
             esValido: false,
             mensaje:
@@ -199,10 +199,10 @@ const validarPermisos = (
           };
         }
       } else {
-        // Para asistencia personal: si es consulta propia, permitir sin ID_o_DNI
+        // Para asistencia personal: si es consulta propia, permitir sin idUsuario
         if (esConsultaPropia) return { esValido: true };
-        // Para consulta de otros, verificar que sea su propio ID_o_DNI
-        if (!idODniConsulta || idODniConsulta !== miIdODni) {
+        // Para consulta de otros, verificar que sea su propio idUsuario
+        if (!idConsulta || idConsulta !== miid) {
           return {
             esValido: false,
             mensaje:
@@ -228,10 +228,10 @@ const validarPermisos = (
             "El personal administrativo no puede consultar asistencias de estudiantes",
         };
       } else {
-        // Para asistencia personal: si es consulta propia, permitir sin ID_o_DNI
+        // Para asistencia personal: si es consulta propia, permitir sin idUsuario
         if (esConsultaPropia) return { esValido: true };
-        // Para consulta de otros, verificar que sea su propio ID_o_DNI
-        if (!idODniConsulta || idODniConsulta !== miIdODni) {
+        // Para consulta de otros, verificar que sea su propio idUsuario
+        if (!idConsulta || idConsulta !== miid) {
           return {
             esValido: false,
             mensaje:
@@ -265,12 +265,12 @@ const validarPermisos = (
             "Los responsables solo pueden consultar asistencias de estudiantes",
         };
       }
-      // Solo consultas unitarias (ID_o_DNI obligatorio)
-      if (!idODniConsulta) {
+      // Solo consultas unitarias (idUsuario obligatorio)
+      if (!idConsulta) {
         return {
           esValido: false,
           mensaje:
-            "Los responsables deben especificar el ID_o_DNI del estudiante a consultar",
+            "Los responsables deben especificar el idUsuario del estudiante a consultar",
         };
       }
       return { esValido: true };
@@ -295,7 +295,7 @@ export async function GET(req: NextRequest) {
 
     if (error && !rol && !decodedToken) return error;
 
-    const MI_ID_O_DNI = decodedToken.ID_Usuario; // ✅ ACTUALIZADO: Para directivos: ID, para otros: DNI
+    const MI_idUsuario = decodedToken.ID_Usuario; // ✅ ACTUALIZADO: Para directivos: ID, para otros: DNI
 
     // Obtener parámetros de la consulta
     const searchParams = req.nextUrl.searchParams;
@@ -304,7 +304,7 @@ export async function GET(req: NextRequest) {
     const tipoAsistenciaParam = searchParams.get(
       "TipoAsistencia"
     ) as TipoAsistencia;
-    const idODniParam = searchParams.get("ID_o_DNI"); // ✅ ACTUALIZADO: Era "DNI"
+    const idParam = searchParams.get("idUsuario"); // ✅ ACTUALIZADO: Era "DNI"
     const gradoParam = searchParams.get("Grado"); // Opcional
     const seccionParam = searchParams.get("Seccion"); // Opcional
     const nivelEducativoParam = searchParams.get("NivelEducativo"); // Opcional
@@ -400,8 +400,8 @@ export async function GET(req: NextRequest) {
       rol!,
       actor,
       tipoAsistenciaFinal,
-      idODniParam,
-      MI_ID_O_DNI,
+      idParam,
+      MI_idUsuario,
       esConsultaPropia,
       gradoParam,
       seccionParam,
@@ -423,19 +423,19 @@ export async function GET(req: NextRequest) {
 
     // ✅ CREAR PATRÓN DE BÚSQUEDA con lógica mejorada
     let patronBusqueda: string;
-    const idODniParaBusqueda = esConsultaPropia ? MI_ID_O_DNI : idODniParam;
+    const idParaBusqueda = esConsultaPropia ? MI_idUsuario : idParam;
 
-    if (idODniParaBusqueda) {
-      // Consulta unitaria por ID_o_DNI específico (propio o de otro)
+    if (idParaBusqueda) {
+      // Consulta unitaria por idUsuario específico (propio o de otro)
       if (
         actor === ActoresSistema.Estudiante &&
         nivelEducativoParam &&
         gradoParam &&
         seccionParam
       ) {
-        patronBusqueda = `${fechaActualPeru}:${modoRegistroParam}:${actor}:${idODniParaBusqueda}:${nivelEducativoParam}:${gradoParam}:${seccionParam}`;
+        patronBusqueda = `${fechaActualPeru}:${modoRegistroParam}:${actor}:${idParaBusqueda}:${nivelEducativoParam}:${gradoParam}:${seccionParam}`;
       } else {
-        patronBusqueda = `${fechaActualPeru}:${modoRegistroParam}:${actor}:${idODniParaBusqueda}`;
+        patronBusqueda = `${fechaActualPeru}:${modoRegistroParam}:${actor}:${idParaBusqueda}`;
       }
     } else if (
       nivelEducativoParam &&
@@ -461,7 +461,7 @@ export async function GET(req: NextRequest) {
 
     // Buscar claves
     let claves: string[];
-    if (idODniParaBusqueda) {
+    if (idParaBusqueda) {
       // Para consulta unitaria, verificar si existe la clave específica
       const existe = await redisClientInstance.exists(patronBusqueda);
       claves = existe ? [patronBusqueda] : [];
@@ -481,21 +481,17 @@ export async function GET(req: NextRequest) {
       if (valor) {
         const partes = clave.split(":");
         if (partes.length >= 4) {
-          const idODni = partes[3]; // ✅ ACTUALIZADO: Puede ser ID o DNI
+          const id = partes[3]; // ✅ ACTUALIZADO: Puede ser ID o DNI
 
           if (actor === ActoresSistema.Estudiante) {
             // Para estudiantes
-            if (
-              typeof valor === "string" &&
-              Object.values(EstadosAsistencia).includes(
-                valor as EstadosAsistencia
-              )
-            ) {
+            if (Array.isArray(valor) && valor.length >= 2) {
+              const desfaseSegundos = parseInt(valor[0] as string);
               resultados.push({
-                ID_o_DNI: idODni, // ✅ ACTUALIZADO: Era "DNI"
+                idUsuario: id, // ✅ ACTUALIZADO: Era "DNI"
                 AsistenciaMarcada: true,
                 Detalles: {
-                  Estado: valor as EstadosAsistencia,
+                  DesfaseSegundos: desfaseSegundos,
                 },
               });
             }
@@ -506,7 +502,7 @@ export async function GET(req: NextRequest) {
               const desfaseSegundos = parseInt(valor[1] as string);
 
               resultados.push({
-                ID_o_DNI: idODni, // ✅ ACTUALIZADO: Era "DNI"
+                idUsuario: id, // ✅ ACTUALIZADO: Era "DNI"
                 AsistenciaMarcada: true,
                 Detalles: {
                   Timestamp: timestamp,
@@ -528,7 +524,7 @@ export async function GET(req: NextRequest) {
       Mes: Number(fechaActualPeru.split("-")[1]) as Meses,
       ModoRegistro: modoRegistroParam as ModoRegistro,
       TipoAsistencia: tipoAsistenciaFinal, // ✅ AGREGADO: Para claridad
-      Resultados: idODniParaBusqueda ? resultados[0] || null : resultados, // Unitario vs múltiple
+      Resultados: idParaBusqueda ? resultados[0] || null : resultados, // Unitario vs múltiple
     };
 
     return NextResponse.json(respuesta, { status: 200 });

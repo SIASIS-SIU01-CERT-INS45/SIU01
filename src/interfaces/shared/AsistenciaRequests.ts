@@ -1,19 +1,19 @@
 // ========== IMPORTS ==========
-import { ModoRegistro } from "./ModoRegistroPersonal";
+import { ModoRegistro } from "./ModoRegistro";
 import { RolesSistema } from "./RolesSistema";
 import { Meses } from "./Meses";
 import { ActoresSistema } from "./ActoresSistema";
 import { EstadosAsistenciaPersonal } from "./EstadosAsistenciaPersonal";
-import { EstadosAsistencia } from "./EstadosAsistenciaEstudiantes";
 import { SuccessResponseAPIBase } from "./apis/types";
 import { NivelEducativo } from "./NivelEducativo";
+import { AsistenciaEscolarDeUnDia } from "./AsistenciasEscolares";
 
 // ========== RESPUESTAS Y RESULTADOS ==========
 
 //////////////////////
 // RESULTADOS DIARIOS
 //////////////////////
-export interface AsistenciaDiariaResultado {
+export interface AsistenciaDiariaDePersonalResultado {
   idUsuario: string;
   AsistenciaMarcada: boolean;
   Detalles: {
@@ -22,6 +22,12 @@ export interface AsistenciaDiariaResultado {
 
     DesfaseSegundos: number;
   };
+}
+
+export interface AsistenciaDiariaEscolarResultado {
+  Id_Estudiante: string;
+  AsistenciaMarcada: boolean;
+  Asistencia: AsistenciaEscolarDeUnDia | null;
 }
 
 // ---------------------------------------------------------------
@@ -72,29 +78,6 @@ export enum TipoAsistencia {
   ParaEstudiantesPrimaria = "primaria",
 }
 
-// // ✅ Interfaces específicas para TypeScript
-// export interface RegistroPropio {
-//   ModoRegistro: ModoRegistro;
-//   FechaHoraEsperadaISO: string;
-// }
-
-// export interface RegistroPersonal extends RegistroPropio {
-//   Id_Usuario: string;
-//   TipoAsistencia: TipoAsistencia.ParaPersonal;
-//   Actor: Exclude<ActoresSistema, ActoresSistema.Estudiante>;
-// }
-
-// export interface RegistroEstudiante extends RegistroPropio {
-//   Id_Usuario: string;
-//   TipoAsistencia:
-//     | TipoAsistencia.ParaEstudiantesPrimaria
-//     | TipoAsistencia.ParaEstudiantesSecundaria;
-//   Actor: ActoresSistema.Estudiante;
-//   NivelDelEstudiante: NivelEducativo;
-//   Grado: number;
-//   Seccion: string;
-// }
-
 // ----------------------------------------------------------------------------
 // |         RELACIONADO AL ESTADO DE CADA TIPO DE TOMA DE ASISTENCIA         |
 // ----------------------------------------------------------------------------
@@ -114,13 +97,16 @@ export interface IniciarTomaAsistenciaRequestBody {
 // |        ASISTENCIAS TOMADAS AGRUPADAS POR ACTOR O POR UN SOLO PERSONAL        |
 // --------------------------------------------------------------------------------
 
-export interface ConsultarAsistenciasTomadasPorActorEnRedisResponseBody {
-  Actor: ActoresSistema;
+export interface ConsultarAsistenciasDePersonalTomadasPorRolEnRedisResponseBody {
+  Rol: RolesSistema;
   Dia: number;
   Mes: Meses;
   ModoRegistro: ModoRegistro;
   TipoAsistencia: TipoAsistencia;
-  Resultados: AsistenciaDiariaResultado[] | AsistenciaDiariaResultado | null; // Array para múltiples, objeto/null para unitario
+  Resultados:
+    | AsistenciaDiariaDePersonalResultado[]
+    | AsistenciaDiariaDePersonalResultado
+    | null; // Array para múltiples, objeto/null para unitario
 }
 
 // --------------------------------------------------------------------------------

@@ -9,11 +9,12 @@ import AllErrorTypes, {
   UserErrorTypes,
 } from "@/interfaces/shared/errors";
 import { ActoresSistema } from "@/interfaces/shared/ActoresSistema";
-import { ModoRegistro } from "@/interfaces/shared/ModoRegistroPersonal";
+import { ModoRegistro } from "@/interfaces/shared/ModoRegistro";
 import { NivelEducativo } from "@/interfaces/shared/NivelEducativo";
 import { TipoAsistencia } from "@/interfaces/shared/AsistenciaRequests";
-import IndexedDBConnection from "../../IndexedDBConnection";
+
 import { ItemDeColaAsistenciaEscolar } from "@/lib/utils/queues/AsistenciasEscolaresQueue";
+import IndexedDBConnection from "@/constants/singleton/IndexedDBConnection";
 
 // Interfaz para filtros de búsqueda
 export interface IColaAsistenciaFilter {
